@@ -1,0 +1,144 @@
+import kivy
+from kivy.app import App
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.button import Button
+from kivy.uix.image import Image
+from kivy.uix.popup import Popup
+from kivy.uix.label import Label
+from kivy.uix.textinput import TextInput
+
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+import numpy as np
+import pyttsx3
+kivy.Config.set('graphics', 'multisamples', '0')
+
+
+sniper_names = {
+    "1": "Barrett M82A1 (.50 BMG)",
+    "2": "Accuracy International Arctic Warfare (.338 Lapua Magnum)",
+    "3": "Remington 700 (.308 Winchester)",
+    "4": "Sako TRG-42 (.300 Winchester Magnum)",
+}
+
+class SniperSimulatorApp(App):
+    def build(self):
+        self.sniper_choice = None
+
+        layout = BoxLayout(orientation='vertical', padding=10)
+
+        for key, name in sniper_names.items():
+            name_button = Button(text=name, size_hint_y=None, height=44)
+            name_button.bind(on_release=self.choose_sniper)
+            name_button.sniper_key = key
+            layout.add_widget(name_button)
+
+        return layout
+
+    def choose_sniper(self, instance):
+        self.sniper_choice = instance.sniper_key
+        self.open_popup()
+
+    def open_popup(self):
+        layout = BoxLayout(orientation='vertical', padding=10)
+
+        simulate_button = Button(text="Simuler", on_press=self.simulate)
+        layout.add_widget(simulate_button)
+
+        self.popup = Popup(title='Simulation', content=layout, size_hint=(None, None), size=(400, 400))
+        self.popup.open()
+
+    def simulate(self, instance):
+        if self.sniper_choice:
+            self.popup.dismiss()
+
+            # Demander à l'utilisateur les informations nécessaires
+            layout = BoxLayout(orientation='vertical', padding=10)
+
+            label_azimut = Label(text="Angle de tir horizontal (en degrés) : ")
+            input_azimut = TextInput(multiline=False, input_filter="float")
+            layout.add_widget(label_azimut)
+            layout.add_widget(input_azimut)
+
+            label_vent = Label(text="Vitesse du vent (en m/s) : ")
+            input_vent = TextInput(multiline=False, input_filter="float")
+            layout.add_widget(label_vent)
+            layout.add_widget(input_vent)
+
+            label_direction_vent = Label(text="Direction horizontale du vent (en degrés) : ")
+            input_direction_vent = TextInput(multiline=False, input_filter="float")
+            layout.add_widget(label_direction_vent)
+            layout.add_widget(input_direction_vent)
+
+            label_ecart_representation = Label(text="Écart de la représentation graphique : ")
+            input_ecart_representation = TextInput(multiline=False, input_filter="float")
+            layout.add_widget(label_ecart_representation)
+            layout.add_widget(input_ecart_representation)
+
+            simulate_button = Button(text="Simuler", on_press=lambda x: self.run_simulation(
+                input_azimut.text, input_vent.text, input_direction_vent.text, input_ecart_representation.text
+            ))
+            layout.add_widget(simulate_button)
+
+            popup_simulation = Popup(title='Simulation', content=layout, size_hint=(None, None), size=(400, 400))
+            popup_simulation.open()
+
+    def run_simulation(self, azimut, vent, direction_vent, ecart_representation):
+        v0, m = 0, 0  # Vous devez assigner les valeurs appropriées à v0 et m en fonction du choix de l'utilisateur
+
+        theta_azimut = np.radians(azimut)
+        v0x = v0 * np.cos(theta_azimut)
+        v0y = 0
+        v0z = v0 * np.sin(theta_azimut)
+
+        k = 0.5
+
+        v_vent = vent
+        theta_vent = np.radians(direction_vent)
+
+        x0, y0, z0 = 0, 0, 0
+
+        def calculate_trajectory(t, azimut, vent, direction_vent, ecart_representation):
+            g = 9.8  # Accélération due à la gravité
+            air_density = 1.225  # Densité de l'air (peut être ajustée)
+            cross_area = 0.01  # Section transversale du projectile (peut être ajustée)
+            drag_coefficient = 0.47  # Coefficient de traînée (peut être ajusté)
+
+            # Calcul des composantes de la vitesse relative par rapport au vent
+            v_rel_x = v0x - vent * np.cos(direction_vent)
+            v_rel_y = - vent * np.sin(direction_vent)
+            v_rel_z = v0z
+
+            # Calcul des forces de traînée dans chaque direction
+            drag_force_x = 0.5 * air_density * v_rel_x**2 * cross_area * drag_coefficient
+            drag_force_y = 0.5 * air_density * v_rel_y**2 * cross_area * drag_coefficient
+            drag_force_z = 0.5 * air_density * v_rel_z**2 * cross_area * drag_coefficient
+
+            # Équations de mouvement avec la force de traînée
+            dxdt = v0x - (m / k) * vent * np.cos(direction_vent) * t - 0.5 * k * t**2
+            dydt = v0y - 0.5 * g * t**2 - 0.5 * k * t**2
+            dzdt = v0z - (m / k) * vent * np.sin(direction_vent) * t - 0.5 * k * t**2
+
+            return dxdt, dydt, dzdt
+
+        t_values = np.linspace(0, ecart_representation, 1000)
+        x_values, y_values, z_values = [], [], []
+
+        for t in t_values:
+            dxdt, dydt, dzdt = calculate_trajectory(t)
+            x_values.append(x0 + dxdt)
+            y_values.append(y0 + dydt)
+            z_values.append(z0 + dzdt)
+
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.plot(x_values, y_values, z_values, label='Trajectoire du projectile')
+        ax.set_xlabel('Axe X')
+        ax.set_ylabel('Axe Y')
+        ax.set_zlabel('Axe Z')
+        ax.legend()
+
+        plt.show()
+
+if __name__ == '__main__':
+    SniperSimulatorApp().run()
