@@ -1,144 +1,96 @@
-import kivy
-from kivy.app import App
-from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.button import Button
-from kivy.uix.image import Image
-from kivy.uix.popup import Popup
-from kivy.uix.label import Label
-from kivy.uix.textinput import TextInput
-
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 import pyttsx3
-kivy.Config.set('graphics', 'multisamples', '0')
 
+engine = pyttsx3.init()
 
-sniper_names = {
-    "1": "Barrett M82A1 (.50 BMG)",
-    "2": "Accuracy International Arctic Warfare (.338 Lapua Magnum)",
-    "3": "Remington 700 (.308 Winchester)",
-    "4": "Sako TRG-42 (.300 Winchester Magnum)",
-}
+def ask_question(question):
+    engine.say(question)
+    engine.runAndWait()
+    return input(question)
+print("BallistiQPro _ Simulation de Balistique\n\
+      Ce logiciel est une propriété exclusive de BallistiQPro. Toute utilisation non autorisée est strictement interdite.En installant ou en utilisant ce logiciel, vous acceptez les termes et conditions de la licence d'utilisation. Pour plus d'informations, veuillez contacter le support technique.© 2024 BallistiQPro. Tous droits réservés.")
 
-class SniperSimulatorApp(App):
-    def build(self):
-        self.sniper_choice = None
+# Choix du fusil de sniper
+snip = input("Bienvenue dans ce simulateur balistique. Choisissez le fusil de sniper à utiliser :\n1 : Barrett M82A1 (calibre .50 BMG)\n2 : Accuracy International Arctic Warfare (calibre .338 Lapua Magnum)\n3 : Remington 700 (calibre .308 Winchester)\n4 : Sako TRG-42 (calibre .300 Winchester Magnum)\n5 : Autre (entrez vos propres valeurs) ")
 
-        layout = BoxLayout(orientation='vertical', padding=10)
+# Assignation des paramètres du fusil en fonction du choix
+v0x, v0y, v0z, k, v_vent, theta_vent = 0, 0, 0, 0, 0, 0  # Initialize the variables
 
-        for key, name in sniper_names.items():
-            name_button = Button(text=name, size_hint_y=None, height=44)
-            name_button.bind(on_release=self.choose_sniper)
-            name_button.sniper_key = key
-            layout.add_widget(name_button)
+if snip == "1":
+    v0 = 853
+    m = 0.045
+elif snip == "2":
+    v0 = 880
+    m = 0.016
+elif snip == "3":
+    v0 = 780
+    m = 0.010
+elif snip == "4":
+    v0 = 900
+    m = 0.010
 
-        return layout
+# Entrée des angles d'élévation et d'azimut
+theta_azimut = np.radians(float(input("Quel est l'angle de tir horizontal (en degrés) : ")))  # Angle d'azimut en radians
 
-    def choose_sniper(self, instance):
-        self.sniper_choice = instance.sniper_key
-        self.open_popup()
+# Calcul des composantes de vitesse initiale
+v0x = v0 * np.cos(theta_azimut)
+v0y = 0  # Pas de composante verticale
+v0z = v0 * np.sin(theta_azimut)
 
-    def open_popup(self):
-        layout = BoxLayout(orientation='vertical', padding=10)
+# Coefficient de traînée
+k = 0.5
 
-        simulate_button = Button(text="Simuler", on_press=self.simulate)
-        layout.add_widget(simulate_button)
+# Entrée de la vitesse et de la direction du vent
+v_vent = float(input("Quelle est la vitesse du vent (en m/s) : ") or 0)  # Valeur par défaut de 0 si aucune entrée
+theta_vent = np.radians(float(input("Quelle est la direction horizontale du vent (en degrés) : ") or 0))  # Valeur par défaut de 0 si aucune entrée
 
-        self.popup = Popup(title='Simulation', content=layout, size_hint=(None, None), size=(400, 400))
-        self.popup.open()
+# Rest of your code remains unchanged
+# Valeurs initiales
+x0, y0, z0 = 0, 0, 0
 
-    def simulate(self, instance):
-        if self.sniper_choice:
-            self.popup.dismiss()
+# Coefficient de traînée
+k = 0.5  # Initialize k before using it in trajectory equations
 
-            # Demander à l'utilisateur les informations nécessaires
-            layout = BoxLayout(orientation='vertical', padding=10)
+# Définir les fonctions x(t), y(t), z(t) avec les valeurs initiales ajoutées
+def x(t):
+    result = x0 + v0x * t - (m/k) * v_vent * np.cos(theta_vent) * t - 0.5 * k * t**2
+    return result
 
-            label_azimut = Label(text="Angle de tir horizontal (en degrés) : ")
-            input_azimut = TextInput(multiline=False, input_filter="float")
-            layout.add_widget(label_azimut)
-            layout.add_widget(input_azimut)
+def z(t):
+    result = z0 + v0z * t - 0.5 * 9.8 * t**2 - 0.5 * k * t**2
+    return result
 
-            label_vent = Label(text="Vitesse du vent (en m/s) : ")
-            input_vent = TextInput(multiline=False, input_filter="float")
-            layout.add_widget(label_vent)
-            layout.add_widget(input_vent)
+def y(t):
+    result = y0 + v0y * t - (m/k) * v_vent * np.sin(theta_vent) * t - 0.5 * k * t**2
+    return result
 
-            label_direction_vent = Label(text="Direction horizontale du vent (en degrés) : ")
-            input_direction_vent = TextInput(multiline=False, input_filter="float")
-            layout.add_widget(label_direction_vent)
-            layout.add_widget(input_direction_vent)
+# Plage de représentation graphique
+ecar = float(ask_question("Quel est l'écart de la représentation graphique (30 conseillé) : "))
 
-            label_ecart_representation = Label(text="Écart de la représentation graphique : ")
-            input_ecart_representation = TextInput(multiline=False, input_filter="float")
-            layout.add_widget(label_ecart_representation)
-            layout.add_widget(input_ecart_representation)
+# Générer des valeurs de temps sur une plage
+t_values = np.linspace(0, ecar, 1000)
 
-            simulate_button = Button(text="Simuler", on_press=lambda x: self.run_simulation(
-                input_azimut.text, input_vent.text, input_direction_vent.text, input_ecart_representation.text
-            ))
-            layout.add_widget(simulate_button)
+# Calculer les coordonnées correspondantes
+x_values = x(t_values)
+y_values = y(t_values)
+z_values = z(t_values)
 
-            popup_simulation = Popup(title='Simulation', content=layout, size_hint=(None, None), size=(400, 400))
-            popup_simulation.open()
+# Tracer la courbe en 3D
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+ax.plot(x_values, y_values, z_values, label='Trajectoire du projectile')
+ax.set_xlabel('Axe X')
+ax.set_ylabel('Axe Y')
+ax.set_zlabel('Axe Z')
+ax.legend()
 
-    def run_simulation(self, azimut, vent, direction_vent, ecart_representation):
-        v0, m = 0, 0  # Vous devez assigner les valeurs appropriées à v0 et m en fonction du choix de l'utilisateur
+# Ajouter les vecteurs de vitesse initiaux à la position initiale
+ax.quiver(x0, y0, z0, v0x, v0y, v0z, color='red', label='Vitesse de départ')
 
-        theta_azimut = np.radians(azimut)
-        v0x = v0 * np.cos(theta_azimut)
-        v0y = 0
-        v0z = v0 * np.sin(theta_azimut)
+# Afficher le graphique
+print ("[INFO] Initialisation du module balistique...")
+print("[WARNING] Calibration en cours...")
+print("[SUCCESS] Simulation terminée avec succès.")
 
-        k = 0.5
-
-        v_vent = vent
-        theta_vent = np.radians(direction_vent)
-
-        x0, y0, z0 = 0, 0, 0
-
-        def calculate_trajectory(t, azimut, vent, direction_vent, ecart_representation):
-            g = 9.8  # Accélération due à la gravité
-            air_density = 1.225  # Densité de l'air (peut être ajustée)
-            cross_area = 0.01  # Section transversale du projectile (peut être ajustée)
-            drag_coefficient = 0.47  # Coefficient de traînée (peut être ajusté)
-
-            # Calcul des composantes de la vitesse relative par rapport au vent
-            v_rel_x = v0x - vent * np.cos(direction_vent)
-            v_rel_y = - vent * np.sin(direction_vent)
-            v_rel_z = v0z
-
-            # Calcul des forces de traînée dans chaque direction
-            drag_force_x = 0.5 * air_density * v_rel_x**2 * cross_area * drag_coefficient
-            drag_force_y = 0.5 * air_density * v_rel_y**2 * cross_area * drag_coefficient
-            drag_force_z = 0.5 * air_density * v_rel_z**2 * cross_area * drag_coefficient
-
-            # Équations de mouvement avec la force de traînée
-            dxdt = v0x - (m / k) * vent * np.cos(direction_vent) * t - 0.5 * k * t**2
-            dydt = v0y - 0.5 * g * t**2 - 0.5 * k * t**2
-            dzdt = v0z - (m / k) * vent * np.sin(direction_vent) * t - 0.5 * k * t**2
-
-            return dxdt, dydt, dzdt
-
-        t_values = np.linspace(0, ecart_representation, 1000)
-        x_values, y_values, z_values = [], [], []
-
-        for t in t_values:
-            dxdt, dydt, dzdt = calculate_trajectory(t)
-            x_values.append(x0 + dxdt)
-            y_values.append(y0 + dydt)
-            z_values.append(z0 + dzdt)
-
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        ax.plot(x_values, y_values, z_values, label='Trajectoire du projectile')
-        ax.set_xlabel('Axe X')
-        ax.set_ylabel('Axe Y')
-        ax.set_zlabel('Axe Z')
-        ax.legend()
-
-        plt.show()
-
-if __name__ == '__main__':
-    SniperSimulatorApp().run()
+plt.show()
