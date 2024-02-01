@@ -12,7 +12,7 @@ print("BallistiQPro _ Simulation de Balistique\n\
       Ce logiciel est une propriété exclusive de BallistiQPro. Toute utilisation non autorisée est strictement interdite.En installant ou en utilisant ce logiciel, vous acceptez les termes et conditions de la licence d'utilisation. Pour plus d'informations, veuillez contacter le support technique.© 2024 BallistiQPro. Tous droits réservés.")
 
 # Choix du fusil de sniper
-snip = input("Bienvenue dans ce simulateur balistique. Choisissez le fusil de sniper à utiliser :\n1 : Barrett M82A1 (calibre .50 BMG)\n2 : Accuracy International Arctic Warfare (calibre .338 Lapua Magnum)\n3 : Remington 700 (calibre .308 Winchester)\n4 : Sako TRG-42 (calibre .300 Winchester Magnum)\n5 : Autre (entrez vos propres valeurs) ")
+snip = input("Bienvenue dans ce simulateur balistique. Choisissez le fusil de sniper à utiliser :\n1 : Barrett M82A1 (calibre .50 BMG)\n2 : Accuracy International Arctic Warfare (calibre .338 Lapua Magnum)\n3 : Remington 700 (calibre .308 Winchester)\n4 : Sako TRG-42 (calibre .300 Winchester Magnum)\n")
 
 # Assignation des paramètres du fusil en fonction du choix
 v0x, v0y, v0z, k, v_vent, theta_vent = 0, 0, 0, 0, 0, 0  # Initialize the variables
